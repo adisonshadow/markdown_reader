@@ -1,147 +1,131 @@
-# Markdown 阅读器
+# MDScape — Markdown 阅读器
 
-一个简单易用的 Markdown 阅读器，支持本地文件预览、自定义样式和全屏阅读模式。
-本项目出发点：有时需要打印AI输出的内容，一些有特色内容的markdown（比如含KaTeX）的Word不能识别，很多markdown预览工具又不适合打印需求，所有才借助AI重新造个轮子。
+面向「预览 + 打印 + 导出」的 Markdown 桌面应用，出发点是：我发现使用AI Agent生成的技术文档、产品文档都是Markdown格式的，如果需要打印或导出PDF、Word，其效果很差，所有拿AI再造个轮子。虽然是 Vibe Coding 的，但是花的是我的心思，烧的我的Token，方便的是大家。
+
+这个应用我自己常用，会慢慢修缮里面的问题，现在只是勉强能用，需要的自己下下来，自己Build。
 
 ## 功能特点
 
-- 📝 支持本地 Markdown 文件上传和预览
-- 🎨 自定义阅读样式
-  - 字体大小调整
-  - 字体粗细设置
-  - 行高调整
-- 📱 全屏预览模式
-  - 按 ESC 键快速退出
-  - 隐藏所有控制元素，专注阅读（也可以用于打印）
-- 📚 文件管理
-  - 文件列表自动排序（按最后打开时间）
-  - 文件删除功能
-- 🖨️ 支持打印优化
-  - 自动调整打印样式
-  - 支持多页打印
-- 📊 支持数学公式（KaTeX）
-- 💻 支持代码高亮（highlight.js）
+### 阅读与预览
 
-## 本地安装
+- 打开本地 `.md` / `.markdown` 文件（Electron 桌面版）
+- **react-markdown** 渲染，支持 GFM（表格、任务列表等）
+- KaTeX 数学公式、highlight.js 代码高亮
+- Mermaid 流程图 / 时序图（React 组件渲染，预览稳定）
+- 本地相对路径图片自动解析为 data URL
 
-### 环境要求
+### 样式与主题
 
-- Node.js 16.0 或更高版本
-- npm 7.0 或更高版本
+- **公文格式**主题（参照 Word 公文排版：黑体标题、楷体/宋体层级、仿宋正文等）
+- 自定义模式：各级标题/正文字号、字体、颜色、行距
+- 样式按 **mdscape 项目** 保存，每个文档独立配置
+- 仅支持浅色界面（不跟随系统 Dark 模式）
 
-### 安装步骤
+### 导出
 
-1. 克隆仓库
+- **导出 PDF**（Electron）：直接 `printToPDF`，Mermaid 保留页内 SVG 矢量图
+- **导出 DOCX**（Electron）：Mermaid 转为 PNG 嵌入；图表缓存于项目目录
+- **打印**：浏览器打印对话框，打印前等待 Mermaid 渲染完成
+
+### 文件与项目
+
+- 打开源文件时自动创建 `{文件名}_mdscape/` 项目目录，包含：
+  - 工作副本 Markdown
+  - `settings.json`（阅读设置）
+  - `mermaid-image-cache/`（DOCX 导出用图表缓存）
+  - `meta.json`（源文件路径等元数据）
+- 源文件变更时自动同步预览（Electron 文件监听）
+- 点击预览页 **header 文件名** 可强制从原始文件刷新
+
+### 其他
+
+- 最近打开记录（localStorage）
+- 导出进度浮层（PDF/DOCX）
+
+## 环境要求
+
+- Node.js 18+（推荐）
+- Yarn 或 npm
+
+## 安装与运行
+
 ```bash
-git clone [仓库地址]
-cd markdown-reader
+# 克隆后进入项目目录
+yarn install
+
+# 开发（Vite 构建 + Electron）
+yarn dev
+
+# 仅构建渲染进程
+yarn build:renderer
+
+# 完整构建
+yarn build
+
+# 运行已构建的桌面版
+yarn start
+
+# 打包安装包
+yarn pack
 ```
 
-2. 安装依赖
-```bash
-npm install
+开发时 Vite 默认端口为 **7531**（见 `vite.config.ts`）。
+
+## 使用说明
+
+### 打开文件
+
+1. 启动桌面应用，点击「打开 Markdown 文件」
+2. 选择 `.md` 文件；同目录下会自动维护 `_mdscape` 项目文件夹
+3. 从历史记录可快速重新打开
+
+### 预览页操作
+
+| 操作 | 说明 |
+|------|------|
+| 设置 | 调整公文/自定义排版，保存到当前项目 |
+| 打印 | 系统打印对话框 |
+| 导出 PDF | 选择保存路径，生成 PDF |
+| 导出 DOCX | 生成 Word 文档（Mermaid 为图片） |
+| 点击文件名 | 强制从磁盘上的原始 `.md` 同步最新内容 |
+
+### 在外部编辑器中改稿
+
+在 VS Code 等工具中编辑**源文件**并保存后，预览应自动更新。若未更新，点击 header 文件名手动同步。
+
+## 项目结构（简要）
+
+```
+src/
+  components/     MarkdownRenderer、MermaidDiagram、SettingsPanel 等
+  pages/          HomePage、PreviewPage
+  utils/          导出、主题、Electron 封装
+electron/         主进程：文件、mdscape 项目、PDF、Mermaid PNG 转换
 ```
 
-3. 启动开发服务器
-```bash
-npm run dev
-```
-开发服务器将在 http://localhost:7531 启动
+## 技术栈
 
-### 端口配置
-
-如果需要修改开发服务器端口，可以通过以下方式：
-
-1. 修改 `vite.config.ts` 文件：
-```typescript
-export default defineConfig({
-  server: {
-    port: 7531, // 修改为你想要的端口号
-  },
-  // ... 其他配置
-})
-```
-
-2. 或者通过命令行参数启动：
-```bash
-npm run dev -- --port 7531
-```
-
-4. 构建生产版本
-```bash
-npm run build
-```
-
-## 安装注意事项
-
-1. **依赖版本**
-   - 项目使用 React 18 和 Ant Design 5.x
-   - 确保 Node.js 版本兼容（推荐使用 Node.js 16+）
-
-2. **浏览器兼容性**
-   - 推荐使用 Chrome、Firefox、Safari 最新版本
-   - 不支持 IE 浏览器
-
-3. **本地存储**
-   - 使用 localStorage 存储文件内容和设置
-   - 清除浏览器数据会导致已上传的文件丢失
-   - 建议定期备份重要文件
-
-4. **文件大小限制**
-   - 由于使用 localStorage 存储，单个文件大小建议不超过 5MB
-   - 总存储空间受浏览器 localStorage 限制（通常为 5-10MB）
-
-5. **开发环境配置**
-   - 如果遇到依赖安装问题，可以尝试删除 `node_modules` 后重新安装
-   - 开发时建议使用 VSCode 编辑器，并安装推荐的扩展
-
-## 使用提示
-
-1. **文件上传**
-   - 支持拖拽上传
-   - 支持点击选择文件
-   - 仅支持 .md 文件
-
-2. **阅读设置**
-   - 所有设置实时预览
-   - 设置会自动保存
-   - 可以随时重置为默认设置
-
-3. **全屏模式**
-   - 点击"全页预览"按钮进入全屏模式
-   - 按 ESC 键退出全屏
-   - 全屏模式下隐藏所有控制元素
-
-4. **打印优化**
-   - 使用浏览器的打印功能（Ctrl+P / Cmd+P）
-   - 打印时会自动优化样式
-   - 支持多页打印
+- React 19 + TypeScript + Vite
+- Electron
+- Ant Design 5
+- react-markdown、remark-gfm、remark-math、rehype-katex、rehype-highlight
+- Mermaid、KaTeX、highlight.js
+- html-to-docx（DOCX 导出）
 
 ## 常见问题
 
-1. **文件上传失败**
-   - 检查文件大小是否超过限制
-   - 确认文件格式是否为 .md
-   - 检查浏览器存储空间是否已满
+**导出功能不可用？**  
+PDF/DOCX 导出仅在 Electron 桌面版可用，浏览器模式不支持。
 
-2. **样式设置不生效**
-   - 尝试刷新页面
-   - 检查浏览器控制台是否有错误
-   - 确认设置是否已保存
+**Mermaid 在 PDF 与 DOCX 中表现不同？**  
+PDF 直接使用页面 SVG；DOCX 需转为 PNG 嵌入，首次导出会在项目目录生成缓存。
 
-3. **数学公式显示异常**
-   - 确认公式语法是否正确
-   - 行内公式使用单个 `$` 包裹
-   - 块级公式使用双 `$$` 包裹
+**预览内容与磁盘不一致？**  
+点击预览页文件名强制同步；确认修改的是源 `.md`，而非 `_mdscape` 内的工作副本。
 
-## 技术栈
-- React 18
-- TypeScript
-- Ant Design 5.x
-- Vite
-- Marked (Markdown 解析)
-- KaTeX (数学公式)
-- highlight.js (代码高亮)
+**数学公式不显示？**  
+行内公式 `$...$`，块级公式 `$$...$$`。
 
 ## 许可证
+
 MIT License
