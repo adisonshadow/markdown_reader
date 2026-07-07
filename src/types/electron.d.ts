@@ -16,6 +16,7 @@ export interface ExportResult {
 
 export type ExportPdfResult = ExportResult;
 export type ExportDocxResult = ExportResult;
+export type PrintPreviewResult = ExportResult;
 
 export type ExportSaveDialogType = 'pdf' | 'docx';
 
@@ -51,6 +52,7 @@ export interface ElectronAPI {
   ) => Promise<ExportSaveDialogResult>;
   savePdfToPath: (filePath: string) => Promise<ExportPdfResult>;
   saveDocxToPath: (htmlContent: string, filePath: string) => Promise<ExportDocxResult>;
+  openPrintPreview: () => Promise<PrintPreviewResult>;
   isElectron: boolean;
 }
 

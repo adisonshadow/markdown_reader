@@ -11,6 +11,11 @@ import {
   syncSourceToWorkspace,
 } from './mdscapeProject';
 import { loadProjectSettings, saveProjectSettings } from './projectSettings';
+import {
+  closePrintPreview,
+  openPrintPreview,
+  printFromPreview,
+} from './printPreview';
 import { svgStringToPngBase64 } from './svgToPng';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const HTMLtoDOCX = require('html-to-docx') as (
@@ -89,7 +94,7 @@ function createWindow() {
     height: 860,
     minWidth: 900,
     minHeight: 600,
-    title: 'Markdown 阅读器',
+    title: 'Markdown 预览 + 打印 + 导出',
     webPreferences: {
       preload: getPreloadPath(),
       contextIsolation: true,
@@ -338,6 +343,31 @@ function registerIpcHandlers() {
         error: error instanceof Error ? error.message : 'DOCX 导出失败',
       };
     }
+  });
+
+  ipcMain.handle('open-print-preview', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) ?? mainWindow;
+    if (!win || win.isDestroyed()) {
+      return { success: false, error: '窗口不可用' };
+    }
+
+    if (win.isMinimized()) {
+      win.restore();
+    }
+    win.focus();
+
+    return openPrintPreview(win.webContents, win);
+  });
+
+  ipcMain.handle('print-preview:print', async () => {
+    const result = await printFromPreview();
+    console.log('[PrintPreview] 打印结果', result);
+    return result;
+  });
+
+  ipcMain.handle('print-preview:close', async () => {
+    await closePrintPreview();
+    return { success: true };
   });
 }
 

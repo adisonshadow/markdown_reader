@@ -4,6 +4,7 @@ import type {
   ExportDocxResult,
   ExportSaveDialogResult,
   ExportSaveDialogType,
+  PrintPreviewResult,
 } from '../types/electron';
 import type { MermaidPngPayload } from '../types/electron';
 import type { MarkdownFile, ReaderSettings } from '../types';
@@ -92,6 +93,13 @@ export async function saveDocxToPath(
     return { success: false, error: '仅 Electron 环境支持 DOCX 导出' };
   }
   return window.electronAPI.saveDocxToPath(htmlContent, filePath);
+}
+
+export async function openPrintPreview(): Promise<PrintPreviewResult> {
+  if (!window.electronAPI) {
+    return { success: false, error: '仅 Electron 环境支持打印预览' };
+  }
+  return window.electronAPI.openPrintPreview();
 }
 
 export async function getMermaidCacheDataUrl(

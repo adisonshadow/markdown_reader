@@ -55,7 +55,7 @@
   },
   "build": {
     "appId": "com.MDScape.reader",
-    "productName": "Markdown 阅读器",
+    "productName": "Markdown 预览 + 打印 + 导出",
     "directories": {
       "output": "release"
     },

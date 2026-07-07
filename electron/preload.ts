@@ -34,5 +34,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   savePdfToPath: (filePath: string) => ipcRenderer.invoke('export:savePdfToPath', filePath),
   saveDocxToPath: (htmlContent: string, filePath: string) =>
     ipcRenderer.invoke('export:saveDocxToPath', htmlContent, filePath),
+  openPrintPreview: () => ipcRenderer.invoke('open-print-preview'),
   isElectron: true,
 });

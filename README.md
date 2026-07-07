@@ -1,4 +1,4 @@
-# MDScape — Markdown 阅读器
+# MDScape — Markdown 预览 + 打印 + 导出
 
 面向「预览 + 打印 + 导出」的 Markdown 桌面应用，出发点是：我发现使用AI Agent生成的技术文档、产品文档都是Markdown格式的，如果需要打印或导出PDF、Word，其效果很差，所有拿AI再造个轮子。虽然是 Vibe Coding 的，但是花的是我的心思，烧的我的Token，方便的是大家。
 

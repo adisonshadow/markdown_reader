@@ -83,7 +83,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onOpenFile }) => {
       <div className="home-page__hero">
         <FileMarkdownOutlined className="home-page__icon" />
         <Title level={2} style={{ marginBottom: 8 }}>
-          Markdown 阅读器
+          Markdown 预览 + 打印 + 导出
         </Title>
         <Text type="secondary">打开本地 Markdown 文件，支持公文主题排版、公式与 Mermaid 图表</Text>
         <Space direction="vertical" size="middle" style={{ marginTop: 32 }}>

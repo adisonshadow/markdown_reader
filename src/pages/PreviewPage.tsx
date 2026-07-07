@@ -14,7 +14,7 @@ import { MarkdownRenderer } from '../components/MarkdownRenderer';
 import { ExportProgressOverlay } from '../components/ExportProgressOverlay';
 import { SettingsProvider, useSettingsContext } from '../contexts/SettingsContext';
 import { MermaidRegistryProvider, useMermaidRegistry } from '../contexts/MermaidRegistryContext';
-import { isElectron, reloadMarkdownFromSource, saveDocxToPath, savePdfToPath, showExportSaveDialog, watchMarkdownFile } from '../utils/electron';
+import { isElectron, openPrintPreview, reloadMarkdownFromSource, saveDocxToPath, savePdfToPath, showExportSaveDialog, watchMarkdownFile } from '../utils/electron';
 import {
   countMermaidBlocks,
   prepareExportContent,
@@ -356,12 +356,31 @@ const PreviewPageContent: React.FC<PreviewPageProps> = ({ file, onBack, onFileUp
   };
 
   const handlePrint = async () => {
-    const root = getExportRoot();
-    if (root) {
-      await waitForMermaidRendered();
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    try {
+      const root = getExportRoot();
+      if (root) {
+        await waitForMermaidRendered();
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }
+
+      if (isElectron()) {
+        flushSync(() => {
+          setProgress((prev) => ({ ...prev, visible: false }));
+        });
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        const result = await openPrintPreview();
+        if (!result.success && result.error) {
+          message.error(result.error);
+        }
+        return;
+      }
+
+      window.print();
+    } catch (error) {
+      console.error('[Print] 打印异常', error);
+      message.error(error instanceof Error ? error.message : '打印失败');
     }
-    window.print();
   };
 
   const handleRefreshFromSource = async () => {

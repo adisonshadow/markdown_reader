@@ -25,5 +25,6 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     showExportSaveDialog: (type, defaultFileName) => electron_1.ipcRenderer.invoke('export:showSaveDialog', type, defaultFileName),
     savePdfToPath: (filePath) => electron_1.ipcRenderer.invoke('export:savePdfToPath', filePath),
     saveDocxToPath: (htmlContent, filePath) => electron_1.ipcRenderer.invoke('export:saveDocxToPath', htmlContent, filePath),
+    openPrintPreview: () => electron_1.ipcRenderer.invoke('open-print-preview'),
     isElectron: true,
 });

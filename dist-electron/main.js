@@ -11,6 +11,7 @@ const fileWatcher_1 = require("./fileWatcher");
 const mermaidCache_1 = require("./mermaidCache");
 const mdscapeProject_1 = require("./mdscapeProject");
 const projectSettings_1 = require("./projectSettings");
+const printPreview_1 = require("./printPreview");
 const svgToPng_1 = require("./svgToPng");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const HTMLtoDOCX = require('html-to-docx');
@@ -73,7 +74,7 @@ function createWindow() {
         height: 860,
         minWidth: 900,
         minHeight: 600,
-        title: 'Markdown 阅读器',
+        title: 'Markdown 预览 + 打印 + 导出',
         webPreferences: {
             preload: getPreloadPath(),
             contextIsolation: true,
@@ -282,6 +283,26 @@ function registerIpcHandlers() {
                 error: error instanceof Error ? error.message : 'DOCX 导出失败',
             };
         }
+    });
+    electron_1.ipcMain.handle('open-print-preview', async (event) => {
+        const win = electron_1.BrowserWindow.fromWebContents(event.sender) ?? mainWindow;
+        if (!win || win.isDestroyed()) {
+            return { success: false, error: '窗口不可用' };
+        }
+        if (win.isMinimized()) {
+            win.restore();
+        }
+        win.focus();
+        return (0, printPreview_1.openPrintPreview)(win.webContents, win);
+    });
+    electron_1.ipcMain.handle('print-preview:print', async () => {
+        const result = await (0, printPreview_1.printFromPreview)();
+        console.log('[PrintPreview] 打印结果', result);
+        return result;
+    });
+    electron_1.ipcMain.handle('print-preview:close', async () => {
+        await (0, printPreview_1.closePrintPreview)();
+        return { success: true };
     });
 }
 electron_1.app.whenReady().then(() => {
