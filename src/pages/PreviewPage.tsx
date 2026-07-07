@@ -48,13 +48,54 @@ function getDefaultDocxName(fileName: string): string {
   return fileName.replace(/\.(md|markdown)$/i, '') + '.docx';
 }
 
+const EXPORT_ERROR_HIDE_MS = 30_000;
+const EXPORT_SUCCESS_HIDE_MS = 5_000;
+const EXPORT_CANCELED_HIDE_MS = 2_000;
+
+function formatExportError(error: unknown): { message: string; stack?: string } {
+  if (error instanceof Error) {
+    return { message: error.message, stack: error.stack };
+  }
+  return { message: String(error) };
+}
+
+function logExportFailure(context: string, details: Record<string, unknown>, error?: unknown) {
+  const formatted = error !== undefined ? formatExportError(error) : undefined;
+  console.error(`[Export] ${context}`, {
+    ...details,
+    ...(formatted
+      ? {
+          errorMessage: formatted.message,
+          errorStack: formatted.stack,
+        }
+      : {}),
+  });
+}
+
+function showExportError(
+  updateProgress: (update: ExportProgressUpdate) => void,
+  scheduleHide: (delayMs: number) => void,
+  title: string,
+  message: string,
+  debugContext: Record<string, unknown>,
+  error?: unknown,
+) {
+  logExportFailure('导出失败', { ...debugContext, uiMessage: message }, error);
+  updateProgress({
+    phase: 'error',
+    title,
+    message: `${message}${message.endsWith('。') ? '' : '。'}（${Math.round(EXPORT_ERROR_HIDE_MS / 1000)} 秒后自动关闭，详见控制台 [Export] 日志）`,
+  });
+  scheduleHide(EXPORT_ERROR_HIDE_MS);
+}
+
 const PreviewPageContent: React.FC<PreviewPageProps> = ({ file, onBack, onFileUpdate }) => {
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [progress, setProgress] = useState<ExportProgressState>(initialExportProgress);
   const { settings } = useSettingsContext();
-  const { requestRestore } = useMermaidRegistry();
+  const { requestRestore, getEntries } = useMermaidRegistry();
   const projectPath = file.projectPath ?? '';
   const assetBasePath = file.sourcePath ?? file.path;
   const hideTimerRef = useRef<number | null>(null);
@@ -96,31 +137,44 @@ const PreviewPageContent: React.FC<PreviewPageProps> = ({ file, onBack, onFileUp
   };
 
   const runExport = async (kind: ExportKind) => {
+    const exportTitle = kind === 'pdf' ? '导出 PDF' : '导出 DOCX';
+    const exportDebugBase = {
+      kind,
+      fileName: file.name,
+      sourcePath: file.sourcePath ?? file.path,
+      projectPath,
+      contentLength: file.content.length,
+    };
+    let mermaidTotal = 0;
+    let preparedHtmlLength = 0;
+    let targetFilePath: string | undefined;
+
     if (!isElectron()) {
-      updateProgress({
-        phase: 'error',
-        title: kind === 'pdf' ? '导出 PDF' : '导出 DOCX',
-        message: '导出功能仅在 Electron 桌面版可用',
-      });
-      scheduleHide(3000);
+      showExportError(
+        updateProgress,
+        scheduleHide,
+        exportTitle,
+        '导出功能仅在 Electron 桌面版可用',
+        exportDebugBase,
+      );
       return;
     }
 
     const root = getExportRoot();
     if (!root) {
-      updateProgress({
-        phase: 'error',
-        title: kind === 'pdf' ? '导出 PDF' : '导出 DOCX',
-        message: '未找到可导出的文档内容',
-      });
-      scheduleHide(3000);
+      showExportError(
+        updateProgress,
+        scheduleHide,
+        exportTitle,
+        '未找到可导出的文档内容',
+        exportDebugBase,
+      );
       return;
     }
 
     clearHideTimer();
     setExporting(true);
 
-    const exportTitle = kind === 'pdf' ? '导出 PDF' : '导出 DOCX';
     updateProgress({
       phase: 'waiting',
       title: exportTitle,
@@ -131,7 +185,8 @@ const PreviewPageContent: React.FC<PreviewPageProps> = ({ file, onBack, onFileUp
     let preparedHtml: string | null = null;
 
     try {
-      const mermaidTotal = countMermaidBlocks(root);
+      mermaidTotal = countMermaidBlocks(root, getEntries);
+      console.log('[Export] 开始导出', { ...exportDebugBase, mermaidTotal });
 
       if (kind === 'pdf') {
         // PDF 直接 printToPDF 捕获页内 SVG，无需转 PNG
@@ -172,10 +227,21 @@ const PreviewPageContent: React.FC<PreviewPageProps> = ({ file, onBack, onFileUp
           projectPath,
           stylesCss,
           onMermaidProgress,
-          { requestRestore },
+          {
+            requestRestore,
+            getRegistryEntries: getEntries,
+            mermaidBackground: settings.colors.background,
+          },
         );
         restore = prepared.restore;
         preparedHtml = prepared.html;
+        preparedHtmlLength = prepared.html.length;
+        console.log('[Export] DOCX HTML 已构建', {
+          ...exportDebugBase,
+          mermaidTotal,
+          preparedHtmlLength,
+          embeddedImages: (prepared.html.match(/data:image\/png;base64/g) ?? []).length,
+        });
       }
 
       updateProgress({
@@ -205,9 +271,11 @@ const PreviewPageContent: React.FC<PreviewPageProps> = ({ file, onBack, onFileUp
           title: exportTitle,
           message: '已取消保存',
         });
-        scheduleHide(2000);
+        scheduleHide(EXPORT_CANCELED_HIDE_MS);
         return;
       }
+
+      targetFilePath = dialogResult.filePath;
 
       updateProgress({
         phase: 'saving',
@@ -223,10 +291,20 @@ const PreviewPageContent: React.FC<PreviewPageProps> = ({ file, onBack, onFileUp
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       }
 
+      console.log('[Export] 开始写入文件', {
+        ...exportDebugBase,
+        kind,
+        targetFilePath,
+        preparedHtmlLength,
+        mermaidTotal,
+      });
+
       const saveResult =
         kind === 'pdf'
           ? await savePdfToPath(dialogResult.filePath)
           : await saveDocxToPath(preparedHtml ?? '', dialogResult.filePath);
+
+      console.log('[Export] 写入结果', saveResult);
 
       if (saveResult.success) {
         updateProgress({
@@ -235,25 +313,43 @@ const PreviewPageContent: React.FC<PreviewPageProps> = ({ file, onBack, onFileUp
           message: '导出成功',
           filePath: saveResult.filePath,
         });
-        scheduleHide(5000);
+        scheduleHide(EXPORT_SUCCESS_HIDE_MS);
       } else {
-        updateProgress({
-          phase: 'error',
-          title: exportTitle,
-          message: saveResult.error ?? '导出失败',
-        });
-        scheduleHide(5000);
+        showExportError(
+          updateProgress,
+          scheduleHide,
+          exportTitle,
+          saveResult.error ?? '导出失败',
+          {
+            ...exportDebugBase,
+            mermaidTotal,
+            preparedHtmlLength,
+            targetFilePath,
+            saveResult,
+          },
+        );
       }
     } catch (error) {
-      updateProgress({
-        phase: 'error',
-        title: exportTitle,
-        message: error instanceof Error ? error.message : '导出过程中发生错误',
-      });
-      scheduleHide(5000);
+      showExportError(
+        updateProgress,
+        scheduleHide,
+        exportTitle,
+        error instanceof Error ? error.message : '导出过程中发生错误',
+        {
+          ...exportDebugBase,
+          mermaidTotal,
+          preparedHtmlLength,
+          targetFilePath,
+        },
+        error,
+      );
     } finally {
       if (restore) {
-        await restore();
+        try {
+          await restore();
+        } catch (restoreError) {
+          logExportFailure('导出后恢复预览失败', exportDebugBase, restoreError);
+        }
       }
       setExporting(false);
     }

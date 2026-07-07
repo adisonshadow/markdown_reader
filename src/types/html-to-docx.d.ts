@@ -1,5 +1,8 @@
 declare module 'html-to-docx' {
   interface DocumentOptions {
+    lang?: string;
+    decodeUnicode?: boolean;
+    embedImages?: boolean;
     table?: { row?: { cantSplit?: boolean } };
     footer?: boolean;
     pageNumber?: boolean;

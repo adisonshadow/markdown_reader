@@ -5,6 +5,7 @@ import type {
   ExportSaveDialogResult,
   ExportSaveDialogType,
 } from '../types/electron';
+import type { MermaidPngPayload } from '../types/electron';
 import type { MarkdownFile, ReaderSettings } from '../types';
 
 export function isElectron(): boolean {
@@ -124,7 +125,7 @@ export async function saveMermaidCache(
   return window.electronAPI.saveMermaidCache(projectPath, hash, pngBase64);
 }
 
-export async function convertSvgToPngBase64(svg: string): Promise<string> {
+export async function convertSvgToPngBase64(svg: string): Promise<MermaidPngPayload> {
   if (!window.electronAPI) {
     throw new Error('SVG 转 PNG 需要 Electron 环境');
   }

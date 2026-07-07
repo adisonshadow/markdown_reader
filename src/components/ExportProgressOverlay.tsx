@@ -53,6 +53,9 @@ export const ExportProgressOverlay: React.FC<ExportProgressOverlayProps> = ({ st
             {state.filePath}
           </div>
         )}
+        {state.phase === 'error' && (
+          <div className="export-progress-hint">请打开开发者工具查看 [Export] 详细日志</div>
+        )}
       </div>
     </div>
   );

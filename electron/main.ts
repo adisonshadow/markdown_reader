@@ -303,15 +303,36 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('export:saveDocxToPath', async (_event, htmlContent: string, filePath: string) => {
+    const htmlLength = htmlContent.length;
+    const embeddedImages = (htmlContent.match(/data:image\/png;base64/g) ?? []).length;
+    console.log('[Export] 开始写入 DOCX', { filePath, htmlLength, embeddedImages });
+
     try {
       const docxBuffer = await HTMLtoDOCX(htmlContent, null, {
+        lang: 'zh-CN',
+        decodeUnicode: true,
+        embedImages: true,
         table: { row: { cantSplit: true } },
         footer: false,
         pageNumber: false,
       });
       await fs.writeFile(filePath, Buffer.from(docxBuffer));
+      console.log('[Export] DOCX 写入成功', {
+        filePath,
+        docxBytes: docxBuffer.length,
+        htmlLength,
+        embeddedImages,
+      });
       return { success: true, filePath };
     } catch (error) {
+      console.error('[Export] DOCX 写入失败', {
+        filePath,
+        htmlLength,
+        embeddedImages,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        errorName: error instanceof Error ? error.name : undefined,
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'DOCX 导出失败',

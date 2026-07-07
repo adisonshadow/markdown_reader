@@ -24,6 +24,12 @@ export interface ExportSaveDialogResult {
   filePath?: string;
 }
 
+export interface MermaidPngPayload {
+  base64: string;
+  displayWidth: number;
+  displayHeight: number;
+}
+
 export interface ElectronAPI {
   openFileDialog: () => Promise<OpenedMarkdownFile | null>;
   openFileByPath: (filePath: string) => Promise<OpenedMarkdownFile>;
@@ -36,7 +42,7 @@ export interface ElectronAPI {
   getMermaidCacheDataUrl: (projectPath: string, hash: string) => Promise<string | null>;
   getMermaidCachePath: (projectPath: string, hash: string) => Promise<string>;
   saveMermaidCache: (projectPath: string, hash: string, pngBase64: string) => Promise<string | null>;
-  convertSvgToPng: (svg: string) => Promise<string>;
+  convertSvgToPng: (svg: string) => Promise<MermaidPngPayload>;
   loadProjectSettings: (projectPath: string) => Promise<unknown | null>;
   saveProjectSettings: (projectPath: string, settings: unknown) => Promise<{ success: boolean }>;
   showExportSaveDialog: (

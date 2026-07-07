@@ -1,5 +1,8 @@
 import mermaid from 'mermaid';
+import type { MermaidPngPayload } from '../types/electron';
 import { convertSvgToPngBase64 } from './electron';
+
+export type { MermaidPngPayload };
 
 export function normalizeMermaidSource(source: string): string {
   return source.replace(/\r\n/g, '\n').trim();
@@ -57,7 +60,7 @@ export async function renderMermaidToPngBase64(
   source: string,
   diagramId: string,
   background = lastBackground,
-): Promise<string> {
+): Promise<MermaidPngPayload> {
   const svg = await renderMermaidToSvg(source, diagramId, background);
   return convertSvgToPngBase64(svg);
 }

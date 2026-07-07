@@ -2,11 +2,16 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.svgStringToPngBase64 = svgStringToPngBase64;
 const electron_1 = require("electron");
+/** 矢量 SVG 先按倍率放大再截图，避免 capturePage 后再 resize 插值导致模糊 */
+const PNG_RENDER_SCALE = 3;
+const RENDER_WAIT_MS = 150;
 /**
  * 用隐藏 Chromium 窗口渲染 SVG 并截图转 PNG。
  * 避免渲染进程 Canvas 污染，也避免 sharp 无法解析 Mermaid foreignObject SVG。
  */
 async function svgStringToPngBase64(svg) {
+    const displayScaleFactor = electron_1.screen.getPrimaryDisplay().scaleFactor;
+    const renderScale = Math.max(PNG_RENDER_SCALE, Math.ceil(displayScaleFactor));
     const win = new electron_1.BrowserWindow({
         show: false,
         width: 800,
@@ -23,6 +28,7 @@ async function svgStringToPngBase64(svg) {
         const dimensions = await win.webContents.executeJavaScript(`
       new Promise((resolve, reject) => {
         try {
+          const RENDER_SCALE = ${renderScale};
           document.documentElement.style.background = '#ffffff';
           document.body.style.margin = '0';
           document.body.style.padding = '16px';
@@ -39,10 +45,30 @@ async function svgStringToPngBase64(svg) {
           document.body.appendChild(svgEl);
 
           requestAnimationFrame(() => {
-            const box = svgEl.getBoundingClientRect();
-            const width = Math.ceil(box.width) || 800;
-            const height = Math.ceil(box.height) || 600;
-            resolve({ width, height });
+            requestAnimationFrame(() => {
+              const box = svgEl.getBoundingClientRect();
+              const logicalWidth = Math.max(Math.ceil(box.width), 1);
+              const logicalHeight = Math.max(Math.ceil(box.height), 1);
+              const scaledWidth = logicalWidth * RENDER_SCALE;
+              const scaledHeight = logicalHeight * RENDER_SCALE;
+
+              svgEl.setAttribute('width', String(scaledWidth));
+              svgEl.setAttribute('height', String(scaledHeight));
+              svgEl.style.width = scaledWidth + 'px';
+              svgEl.style.height = scaledHeight + 'px';
+              svgEl.style.maxWidth = 'none';
+              svgEl.style.maxHeight = 'none';
+
+              requestAnimationFrame(() => {
+                const finalBox = svgEl.getBoundingClientRect();
+                resolve({
+                  width: Math.max(Math.ceil(finalBox.width), scaledWidth),
+                  height: Math.max(Math.ceil(finalBox.height), scaledHeight),
+                  displayWidth: logicalWidth,
+                  displayHeight: logicalHeight,
+                });
+              });
+            });
           });
         } catch (error) {
           reject(error);
@@ -50,19 +76,17 @@ async function svgStringToPngBase64(svg) {
       })
     `);
         const padding = 32;
-        const contentWidth = Math.min(Math.max(dimensions.width + padding, 100), 4096);
-        const contentHeight = Math.min(Math.max(dimensions.height + padding, 100), 4096);
+        const contentWidth = Math.min(Math.max(dimensions.width + padding, 100), 8192);
+        const contentHeight = Math.min(Math.max(dimensions.height + padding, 100), 8192);
         win.setContentSize(contentWidth, contentHeight);
-        await new Promise((resolve) => setTimeout(resolve, 80));
+        await new Promise((resolve) => setTimeout(resolve, RENDER_WAIT_MS));
         const image = await win.webContents.capturePage();
-        const scale = 2;
-        const size = image.getSize();
-        const targetWidth = Math.min(size.width * scale, 8192);
-        const targetHeight = Math.min(size.height * scale, 8192);
-        const pngBuffer = targetWidth > size.width
-            ? image.resize({ width: targetWidth, height: targetHeight }).toPNG()
-            : image.toPNG();
-        return pngBuffer.toString('base64');
+        const pngBuffer = image.toPNG();
+        return {
+            base64: pngBuffer.toString('base64'),
+            displayWidth: dimensions.displayWidth,
+            displayHeight: dimensions.displayHeight,
+        };
     }
     finally {
         if (!win.isDestroyed()) {

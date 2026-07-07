@@ -73,6 +73,13 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           src && map[src] ? map[src] : /^(https?:|data:)/i.test(src ?? '') ? src : src ?? '';
         return <img src={resolved} alt={alt ?? ''} {...props} />;
       },
+      pre({ children, ...props }) {
+        const child = React.Children.toArray(children)[0];
+        if (React.isValidElement(child) && child.type === MermaidDiagram) {
+          return <>{children}</>;
+        }
+        return <pre {...props}>{children}</pre>;
+      },
       code({ className, children, ...props }) {
         const match = /language-(\w+)/.exec(className ?? '');
         const lang = match?.[1];
@@ -89,11 +96,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
         if (isBlock) {
           return (
-            <pre className={className}>
-              <code className={className} {...props}>
-                {children}
-              </code>
-            </pre>
+            <code className={className} {...props}>
+              {children}
+            </code>
           );
         }
 
